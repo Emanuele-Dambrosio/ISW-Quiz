@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "exams": [
+    {
+      "id": "isw-demo-2026-06-16",
+      "title": "Demo ISW",
+      "sourceUrl": null,
+      "date": "2026-06-16"
+    }
+  ],
+  "categories": [
+    {
+      "id": "testing",
+      "name": "Testing",
+      "description": "Verifica, validazione, copertura e tecniche di test.",
+      "keywords": ["test", "testing", "coverage", "black-box", "white-box"]
+    },
+    {
+      "id": "requirements",
+      "name": "Requisiti",
+      "description": "Elicitazione, analisi e tracciabilita dei requisiti.",
+      "keywords": ["requisito", "requirement", "use case", "stakeholder"]
+    }
+  ],
+  "questions": [
+    {
+      "id": "q_demo_testing_001",
+      "canonicalHash": "sha256:demo-testing-001",
+      "textHtml": "<p>Quale affermazione sul testing del software e corretta?</p>",
+      "textPlain": "Quale affermazione sul testing del software e corretta?",
+      "images": [],
+      "options": [
+        {
+          "id": "q_demo_testing_001_a",
+          "textHtml": "<p>Il testing dimostra l'assenza di difetti.</p>",
+          "textPlain": "Il testing dimostra l'assenza di difetti.",
+          "images": [],
+          "isCorrect": false
+        },
+        {
+          "id": "q_demo_testing_001_b",
+          "textHtml": "<p>Il testing puo mostrare la presenza di difetti.</p>",
+          "textPlain": "Il testing puo mostrare la presenza di difetti.",
+          "images": [],
+          "isCorrect": true
+        },
+        {
+          "id": "q_demo_testing_001_c",
+          "textHtml": "<p>Il testing sostituisce la progettazione.</p>",
+          "textPlain": "Il testing sostituisce la progettazione.",
+          "images": [],
+          "isCorrect": false
+        },
+        {
+          "id": "q_demo_testing_001_d",
+          "textHtml": "<p>Il testing elimina la necessita di revisioni.</p>",
+          "textPlain": "Il testing elimina la necessita di revisioni.",
+          "images": [],
+          "isCorrect": false
+        }
+      ],
+      "explanationHtml": null,
+      "categoryPredictions": [
+        {
+          "categoryId": "testing",
+          "confidence": 0.94,
+          "method": "keyword+tfidf"
+        }
+      ],
+      "appearances": [
+        {
+          "examId": "isw-demo-2026-06-16",
+          "questionNumber": 1,
+          "optionOrder": [
+            "q_demo_testing_001_a",
+            "q_demo_testing_001_b",
+            "q_demo_testing_001_c",
+            "q_demo_testing_001_d"
+          ]
+        }
+      ],
+      "createdAt": "2026-06-16T00:00:00.000Z",
+      "updatedAt": "2026-06-16T00:00:00.000Z"
+    }
+  ]
+}

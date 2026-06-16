@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.isw-quiz/question-bank.schema.json",
+  "title": "ISW Question Bank",
+  "type": "object",
+  "required": ["version", "exams", "categories", "questions"],
+  "properties": {
+    "version": { "type": "integer", "minimum": 1 },
+    "exams": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title"],
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "sourceUrl": { "type": ["string", "null"] },
+          "date": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "categories": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "keywords"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "keywords": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "canonicalHash",
+          "textHtml",
+          "textPlain",
+          "images",
+          "options",
+          "categoryPredictions",
+          "appearances",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "canonicalHash": { "type": "string" },
+          "textHtml": { "type": "string" },
+          "textPlain": { "type": "string" },
+          "images": { "$ref": "#/$defs/images" },
+          "options": {
+            "type": "array",
+            "minItems": 2,
+            "items": {
+              "type": "object",
+              "required": ["id", "textHtml", "textPlain", "images", "isCorrect"],
+              "properties": {
+                "id": { "type": "string" },
+                "textHtml": { "type": "string" },
+                "textPlain": { "type": "string" },
+                "images": { "$ref": "#/$defs/images" },
+                "isCorrect": { "type": "boolean" }
+              }
+            }
+          },
+          "explanationHtml": { "type": ["string", "null"] },
+          "categoryPredictions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["categoryId", "confidence", "method"],
+              "properties": {
+                "categoryId": { "type": "string" },
+                "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+                "method": { "type": "string" }
+              }
+            }
+          },
+          "appearances": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["examId", "optionOrder"],
+              "properties": {
+                "examId": { "type": "string" },
+                "questionNumber": { "type": ["integer", "null"] },
+                "optionOrder": { "type": "array", "items": { "type": "string" } }
+              }
+            }
+          },
+          "createdAt": { "type": "string" },
+          "updatedAt": { "type": "string" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "images": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "localPath", "sha256"],
+        "properties": {
+          "id": { "type": "string" },
+          "originalUrl": { "type": ["string", "null"] },
+          "localPath": { "type": "string" },
+          "sha256": { "type": "string" },
+          "alt": { "type": "string" }
+        }
+      }
+    }
+  }
+}

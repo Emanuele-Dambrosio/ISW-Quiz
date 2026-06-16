@@ -1,0 +1,44 @@
+[
+  {
+    "id": "requirements",
+    "name": "Requisiti",
+    "description": "Elicitazione, analisi, specifica e tracciabilita dei requisiti.",
+    "keywords": ["requisito", "requisiti", "requirement", "stakeholder", "use case", "caso d'uso", "user story"]
+  },
+  {
+    "id": "uml",
+    "name": "UML e modellazione",
+    "description": "Class diagram, sequence diagram, activity diagram e modellazione del dominio.",
+    "keywords": ["uml", "class diagram", "sequence diagram", "activity diagram", "diagramma", "associazione", "ereditarieta"]
+  },
+  {
+    "id": "design-patterns",
+    "name": "Design pattern",
+    "description": "Pattern GoF, principi SOLID e progettazione object-oriented.",
+    "keywords": ["pattern", "singleton", "factory", "observer", "strategy", "adapter", "solid", "responsibility"]
+  },
+  {
+    "id": "testing",
+    "name": "Testing",
+    "description": "Verifica, validazione, tecniche di testing e copertura.",
+    "keywords": ["test", "testing", "coverage", "copertura", "black-box", "white-box", "unit test", "integration test", "validazione"]
+  },
+  {
+    "id": "process",
+    "name": "Processi software",
+    "description": "Cicli di vita, agile, waterfall, Scrum e gestione del processo.",
+    "keywords": ["processo", "waterfall", "agile", "scrum", "sprint", "incrementale", "iterativo", "kanban"]
+  },
+  {
+    "id": "architecture",
+    "name": "Architetture software",
+    "description": "Stili architetturali, componenti, layering e qualita architetturali.",
+    "keywords": ["architettura", "layer", "mvc", "client-server", "microservizi", "componente", "deployment"]
+  },
+  {
+    "id": "maintenance",
+    "name": "Manutenzione e qualita",
+    "description": "Metriche, refactoring, debito tecnico, configurazione e manutenzione.",
+    "keywords": ["manutenzione", "refactoring", "metrica", "debito tecnico", "qualita", "configuration management", "git"]
+  }
+]

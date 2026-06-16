@@ -1,0 +1,15 @@
+services:
+  isw-quiz:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      DB_FILE_NAME: file:/app/runtime/local.db
+      APP_DB_PATH: /app/runtime/local.db
+      SEED_DB_PATH: /app/data/seed/isw-quiz.seed.db
+    volumes:
+      - isw_quiz_data:/app/runtime
+    restart: unless-stopped
+
+volumes:
+  isw_quiz_data:
