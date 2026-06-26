@@ -16,6 +16,7 @@ import {
   questionSchema,
   type QuestionBank,
 } from "../src/lib/question-bank";
+import { cleanAnswerFeedbackHtml, cleanAnswerFeedbackPlain } from "./answer-feedback-cleaner";
 
 const inputPath = process.argv[2];
 
@@ -159,17 +160,19 @@ async function main() {
       });
 
     await db.delete(categoryPredictions).where(eq(categoryPredictions.questionId, question.id));
-    await db.delete(questionAppearances).where(eq(questionAppearances.questionId, question.id));
     await db.delete(assets).where(eq(assets.questionId, question.id));
     await db.delete(options).where(eq(options.questionId, question.id));
 
     for (const [index, option] of question.options.entries()) {
+      const textHtml = cleanAnswerFeedbackHtml(option.textHtml);
+      const textPlain = cleanAnswerFeedbackPlain(option.textPlain);
+
       await db.insert(options).values({
         id: option.id,
         questionId: question.id,
         label: String.fromCharCode(65 + index),
-        textHtml: option.textHtml,
-        textPlain: option.textPlain,
+        textHtml,
+        textPlain,
         isCorrect: option.isCorrect,
         position: index,
       });
@@ -213,12 +216,21 @@ async function main() {
     }
 
     for (const appearance of question.appearances) {
-      await db.insert(questionAppearances).values({
-        questionId: question.id,
-        examId: appearance.examId,
-        questionNumber: appearance.questionNumber ?? null,
-        optionOrderJson: JSON.stringify(appearance.optionOrder),
-      });
+      await db
+        .insert(questionAppearances)
+        .values({
+          questionId: question.id,
+          examId: appearance.examId,
+          questionNumber: appearance.questionNumber ?? null,
+          optionOrderJson: JSON.stringify(appearance.optionOrder),
+        })
+        .onConflictDoUpdate({
+          target: [questionAppearances.questionId, questionAppearances.examId],
+          set: {
+            questionNumber: appearance.questionNumber ?? null,
+            optionOrderJson: JSON.stringify(appearance.optionOrder),
+          },
+        });
     }
 
     const duplicateByHash = await db

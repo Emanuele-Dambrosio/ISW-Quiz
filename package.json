@@ -15,6 +15,7 @@
     "db:import": "tsx scripts/import-questions.ts data/raw/question-bank.json",
     "db:metadata": "tsx scripts/import-exam-metadata.ts data/raw/question-bank.json",
     "db:reset-stats": "tsx scripts/reset-stats.ts",
+    "db:clean-answer-feedback": "tsx scripts/clean-answer-feedback.ts",
     "scraper:login": ".venv/bin/python scraper/moodle_scraper.py login",
     "scraper:scrape": ".venv/bin/python scraper/moodle_scraper.py scrape",
     "scraper:metadata": ".venv/bin/python scraper/moodle_scraper.py metadata",

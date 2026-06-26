@@ -7,7 +7,7 @@ export function AppearanceBadge({ count, labels }: { count: string; labels: stri
 
   return (
     <span
-      className="relative inline-block"
+      className="group relative inline-block"
       onPointerEnter={() => setOpen(true)}
       onPointerLeave={() => setOpen(false)}
       onMouseEnter={() => setOpen(true)}
@@ -27,7 +27,7 @@ export function AppearanceBadge({ count, labels }: { count: string; labels: stri
         role="tooltip"
         className={[
           "pointer-events-none absolute left-0 top-full z-50 mt-2 w-56 rounded-lg border border-[#d8d6cc] bg-white p-2 text-xs font-normal text-[#4d554c] shadow-lg",
-          open ? "block" : "hidden",
+          open ? "block" : "hidden group-hover:block group-focus-within:block",
         ].join(" ")}
       >
         <span className="mb-1 block font-semibold text-[#181917]">Date esami</span>

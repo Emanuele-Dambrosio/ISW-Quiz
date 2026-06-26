@@ -114,6 +114,28 @@ def clean_option_html(option_node: Tag) -> str:
     return body_html(soup)
 
 
+def remove_moodle_answer_feedback_html(value: str) -> str:
+    soup = BeautifulSoup(value, "lxml")
+    for selector in [".specificfeedback", ".feedback", ".outcome"]:
+        for node in soup.select(selector):
+            node.decompose()
+    for icon in soup.select(
+        "i[aria-label='Risposta corretta'], "
+        "i[title='Risposta corretta'], "
+        "i[aria-label='Risposta errata'], "
+        "i[title='Risposta errata']"
+    ):
+        parent = icon.parent
+        icon.decompose()
+        if isinstance(parent, Tag) and not parent.get_text(" ", strip=True) and not parent.find():
+            parent.decompose()
+    return body_html(soup)
+
+
+def remove_moodle_answer_feedback_plain(value: str) -> str:
+    return re.sub(r"\s*\b(?:Correct|Incorrect)\.\s*$", "", value, flags=re.IGNORECASE).strip()
+
+
 def strip_url_fragment(url: str) -> str:
     parsed = urlparse(url)
     return urlunparse(parsed._replace(fragment=""))
@@ -479,12 +501,13 @@ async def parse_question(
 
     parsed_options: list[dict[str, Any]] = []
     for raw_index, node in enumerate(option_nodes(container)):
-        cleaned_html = clean_option_html(node)
-        option_html, option_images = await rewrite_images(page, cleaned_html, base_url)
-        option_plain = html_to_plain(option_html)
+        canonical_html = clean_option_html(node)
+        display_html = remove_moodle_answer_feedback_html(canonical_html)
+        option_html, option_images = await rewrite_images(page, display_html, base_url)
+        option_plain = remove_moodle_answer_feedback_plain(html_to_plain(option_html))
         if not option_plain:
             continue
-        normalized_option = normalize_text(option_plain)
+        normalized_option = normalize_text(canonical_html)
         parsed_options.append(
             {
                 "rawIndex": raw_index,

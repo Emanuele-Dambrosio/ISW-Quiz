@@ -46,6 +46,8 @@ export type QuizQuestionData = {
 
 export type TrainingQuestionData = QuizQuestionData & {
   masteryScore: number;
+  appearanceCount: number;
+  appearanceLabels: string | null;
 };
 
 export async function getCategoryRows() {
@@ -135,6 +137,9 @@ export async function getRandomQuizQuestions(limit = 50) {
 }
 
 export async function getRandomTrainingQuestion(excludeQuestionId?: string): Promise<TrainingQuestionData | null> {
+  const appearanceCount = sql<number>`count(distinct ${questionAppearances.examId})`;
+  const appearanceLabels = sql<string>`group_concat(distinct coalesce(${exams.date}, ${exams.title}))`;
+
   const rows = await db
     .select({
       id: questions.id,
@@ -143,11 +148,16 @@ export async function getRandomTrainingQuestion(excludeQuestionId?: string): Pro
       textPlain: questions.textPlain,
       categoryName: categories.name,
       masteryScore: sql<number>`coalesce(${questionStats.masteryScore}, 0)`,
+      appearanceCount,
+      appearanceLabels,
     })
     .from(questions)
     .leftJoin(categories, eq(questions.primaryCategoryId, categories.id))
+    .leftJoin(questionAppearances, eq(questionAppearances.questionId, questions.id))
+    .leftJoin(exams, eq(questionAppearances.examId, exams.id))
     .leftJoin(questionStats, eq(questionStats.questionId, questions.id))
     .where(excludeQuestionId ? sql`${questions.id} <> ${excludeQuestionId}` : undefined)
+    .groupBy(questions.id)
     .orderBy(sql`random()`)
     .limit(1);
 
@@ -159,6 +169,8 @@ export async function getRandomTrainingQuestion(excludeQuestionId?: string): Pro
   return {
     ...hydrated,
     masteryScore: Number(rows[0].masteryScore ?? 0),
+    appearanceCount: Number(rows[0].appearanceCount ?? 0),
+    appearanceLabels: rows[0].appearanceLabels ?? null,
   };
 }
 

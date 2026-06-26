@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, Shuffle, XCircle } from "lucide-react";
+import { AppearanceBadge } from "@/components/AppearanceBadge";
+import { formatExamAppearanceLabel } from "@/lib/exam-format";
 import type { TrainingQuestionData } from "@/lib/quiz-data";
 
 type TrainingResult = {
@@ -100,12 +102,18 @@ export function TrainingRunner({ initialQuestion }: { initialQuestion: TrainingQ
     );
   }
 
+  const appearanceLabels = formatAppearanceLabels(question.appearanceLabels);
+
   return (
     <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_280px]">
       <section className="min-w-0 rounded-lg border border-[#dfded6] bg-white">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#ebe9df] p-4">
-          <div>
-            <p className="text-sm font-medium text-[#667064]">Allenamento random · Domanda #{question.displayNumber}</p>
+          <div className="min-w-0">
+            <div className="mb-2 flex flex-wrap items-center gap-2 text-sm">
+              <span className="font-medium text-[#667064]">Allenamento random</span>
+              <QuestionNumberBadge value={question.displayNumber} />
+              <AppearanceBadge count={formatAppearanceCount(question.appearanceCount)} labels={appearanceLabels} />
+            </div>
             <h2 className="text-lg font-semibold">{question.categoryName ?? "Non classificata"}</h2>
           </div>
           <CounterPill value={counter} />
@@ -200,6 +208,14 @@ export function TrainingRunner({ initialQuestion }: { initialQuestion: TrainingQ
   );
 }
 
+function QuestionNumberBadge({ value }: { value: number }) {
+  return (
+    <span className="inline-flex rounded-md bg-[#1b4332] px-2 py-1 text-xs font-semibold text-white">
+      Domanda #{value}
+    </span>
+  );
+}
+
 function CounterPill({ value }: { value: number }) {
   const tone =
     value > 0
@@ -213,6 +229,31 @@ function CounterPill({ value }: { value: number }) {
       Contatore: {value > 0 ? `+${value}` : value}
     </div>
   );
+}
+
+function formatAppearanceLabels(value: string | null) {
+  const labels = (value ?? "")
+    .split(",")
+    .map((label) => label.trim())
+    .filter(Boolean)
+    .sort(sortAppearanceLabels)
+    .map(formatExamAppearanceLabel);
+
+  return labels.length > 0 ? labels : ["Data non disponibile"];
+}
+
+function sortAppearanceLabels(first: string, second: string) {
+  const firstDate = isIsoDate(first) ? first : "";
+  const secondDate = isIsoDate(second) ? second : "";
+  return secondDate.localeCompare(firstDate);
+}
+
+function isIsoDate(value: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function formatAppearanceCount(count: number) {
+  return count === 1 ? "1 esame" : `${count} esami`;
 }
 
 function RuleRow({ label, value, tone }: { label: string; value: string; tone: "positive" | "negative" }) {
