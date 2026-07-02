@@ -201,12 +201,26 @@ def chunks_to_flowables(chunks, styles, public_root, max_width):
     return flowables
 
 
-def fetch_questions(db_path):
+def fetch_questions(db_path, question_ids=None, flagged_only=False):
     connection = sqlite3.connect(db_path)
     connection.row_factory = sqlite3.Row
     try:
+        joins = ""
+        conditions = []
+        params = []
+
+        if flagged_only:
+            joins += " inner join question_flags qf on qf.question_id = q.id"
+
+        if question_ids is not None:
+            placeholders = ",".join("?" for _ in question_ids)
+            conditions.append(f"q.id in ({placeholders})")
+            params.extend(question_ids)
+
+        where_clause = f" where {' and '.join(conditions)}" if conditions else ""
+
         questions = connection.execute(
-            """
+            f"""
             select
                 q.id,
                 q.display_number,
@@ -217,9 +231,12 @@ def fetch_questions(db_path):
             from questions q
             left join categories c on c.id = q.primary_category_id
             left join question_appearances qa on qa.question_id = q.id
+            {joins}
+            {where_clause}
             group by q.id
             order by coalesce(q.display_number, 999999), q.created_at, q.id
-            """
+            """,
+            params,
         ).fetchall()
 
         result = []
@@ -362,8 +379,10 @@ def page_footer(canvas, doc):
     canvas.restoreState()
 
 
-def build_pdf(db_path, output_path, public_root):
-    data = fetch_questions(db_path)
+def build_pdf(db_path, output_path, public_root, question_ids=None, flagged_only=False, title="Banca domande ISW"):
+    data = fetch_questions(db_path, question_ids=question_ids, flagged_only=flagged_only)
+    if not data:
+        raise SystemExit("No questions matched the requested selection.")
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     doc = SimpleDocTemplate(
@@ -373,7 +392,7 @@ def build_pdf(db_path, output_path, public_root):
         rightMargin=16 * mm,
         topMargin=17 * mm,
         bottomMargin=19 * mm,
-        title="Banca domande ISW",
+        title=title,
         author="ISW Quiz",
     )
     styles = build_styles()
@@ -385,7 +404,7 @@ def build_pdf(db_path, output_path, public_root):
     generated_at = datetime.now().strftime("%d/%m/%Y %H:%M")
 
     story.append(Spacer(1, 35 * mm))
-    story.append(Paragraph("Banca domande ISW", styles["Title"]))
+    story.append(Paragraph(escape(title), styles["Title"]))
     story.append(
         Paragraph(
             f"{total_questions} domande - {total_options} risposte - {total_correct} risposte corrette evidenziate",
@@ -452,10 +471,17 @@ def build_pdf(db_path, output_path, public_root):
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Generate a PDF with all questions and highlighted correct answers.")
+    parser = argparse.ArgumentParser(description="Generate a PDF with questions and highlighted correct answers.")
     parser.add_argument("--db", default=str(DEFAULT_DB), help="SQLite database path.")
     parser.add_argument("--output", default=str(DEFAULT_OUTPUT), help="Output PDF path.")
     parser.add_argument("--public-root", default=str(DEFAULT_PUBLIC_ROOT), help="Public assets root.")
+    parser.add_argument("--title", default="Banca domande ISW", help="Document title.")
+    parser.add_argument("--flagged-only", action="store_true", help="Include only flagged questions.")
+    parser.add_argument(
+        "--ids-file",
+        default=None,
+        help="Path to a file with one question id per line; only these questions are included.",
+    )
     return parser.parse_args()
 
 
@@ -470,7 +496,23 @@ def main():
     if not public_root.exists():
         raise SystemExit(f"Public root not found: {public_root}")
 
-    pdf_path = build_pdf(db_path, output_path, public_root)
+    question_ids = None
+    if args.ids_file:
+        ids_path = Path(args.ids_file).resolve()
+        if not ids_path.exists():
+            raise SystemExit(f"Ids file not found: {ids_path}")
+        question_ids = [line.strip() for line in ids_path.read_text().splitlines() if line.strip()]
+        if not question_ids:
+            raise SystemExit("Ids file is empty.")
+
+    pdf_path = build_pdf(
+        db_path,
+        output_path,
+        public_root,
+        question_ids=question_ids,
+        flagged_only=args.flagged_only,
+        title=args.title,
+    )
     print(f"PDF generated: {pdf_path}")
 
 

@@ -164,6 +164,14 @@ export async function getQuestionListCount(filters?: {
   return Number(row?.value ?? 0);
 }
 
+export async function getFlaggedQuestionCount() {
+  const [row] = await db
+    .select({ value: sql<number>`count(*)` })
+    .from(questionFlags);
+
+  return Number(row?.value ?? 0);
+}
+
 export async function getRandomQuizQuestions(limit = 50) {
   const rows = await db
     .select({
