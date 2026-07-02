@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { AppHeader, AppShell } from "@/components/AppShell";
+import { FlagButton } from "@/components/FlagButton";
 import { formatExamLabel } from "@/lib/exam-format";
 import { getQuestionDetail } from "@/lib/quiz-data";
 
@@ -20,20 +21,23 @@ export default async function QuestionDetailPage({
   const [{ id }, filters] = await Promise.all([params, searchParams]);
   const question = await getQuestionDetail(id);
   if (!question) notFound();
-  const returnHref = normalizeQuestionsReturn(filters.returnTo);
+  const returnTarget = normalizeReturnTarget(filters.returnTo);
 
   return (
     <AppShell>
       <AppHeader
         title="Dettaglio Domanda"
         action={
-          <Link
-            href={returnHref}
-            className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#d8d6cc] bg-white px-3 text-sm font-medium hover:bg-[#f3f1e8]"
-          >
-            <ArrowLeft size={16} aria-hidden="true" />
-            Browser
-          </Link>
+          <div className="flex items-center gap-2">
+            <FlagButton questionId={question.id} initialFlagged={question.isFlagged} refreshOnToggle />
+            <Link
+              href={returnTarget.href}
+              className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#d8d6cc] bg-white px-3 text-sm font-medium hover:bg-[#f3f1e8]"
+            >
+              <ArrowLeft size={16} aria-hidden="true" />
+              {returnTarget.label}
+            </Link>
+          </div>
         }
       />
       <div className="grid gap-5 px-5 py-5 md:px-8">
@@ -109,8 +113,10 @@ function formatCounter(value: number) {
   return value > 0 ? `+${value}` : String(value);
 }
 
-function normalizeQuestionsReturn(value?: string) {
-  if (!value) return "/questions";
-  if (value === "/questions" || value.startsWith("/questions?")) return value;
-  return "/questions";
+function normalizeReturnTarget(value?: string) {
+  if (value === "/segnate") return { href: "/segnate", label: "Segnate" };
+  if (value && (value === "/questions" || value.startsWith("/questions?"))) {
+    return { href: value, label: "Browser" };
+  }
+  return { href: "/questions", label: "Browser" };
 }

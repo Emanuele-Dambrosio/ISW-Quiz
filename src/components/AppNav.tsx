@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { BookOpen, LayoutDashboard, Target } from "lucide-react";
+import { BookOpen, Flag, LayoutDashboard, Target } from "lucide-react";
 
 const navItems = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard },
   { label: "Browser", href: "/questions", icon: BookOpen },
   { label: "Allenamento", href: "/allenamento", icon: Target },
+  { label: "Segnate", href: "/segnate", icon: Flag },
 ];
 
 export function SidebarNav() {
@@ -60,7 +61,7 @@ export function MobileNav() {
 
   return (
     <nav
-      className="sticky top-0 z-40 grid grid-cols-3 border-b border-[#d8d6cc] bg-[#fbfbf8] px-2 py-2 shadow-[0_6px_20px_rgba(24,25,23,0.07)] md:hidden"
+      className="sticky top-0 z-40 grid grid-cols-4 border-b border-[#d8d6cc] bg-[#fbfbf8] px-2 py-2 shadow-[0_6px_20px_rgba(24,25,23,0.07)] md:hidden"
       aria-label="Navigazione principale"
     >
       {navItems.map((item) => {

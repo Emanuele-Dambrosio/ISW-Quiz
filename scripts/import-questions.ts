@@ -16,6 +16,7 @@ import {
   questionSchema,
   type QuestionBank,
 } from "../src/lib/question-bank";
+import { normalizeSearchText } from "../src/lib/search-text";
 import { cleanAnswerFeedbackHtml, cleanAnswerFeedbackPlain } from "./answer-feedback-cleaner";
 
 const inputPath = process.argv[2];
@@ -142,6 +143,7 @@ async function main() {
         canonicalHash: question.canonicalHash,
         textHtml: question.textHtml,
         textPlain: question.textPlain,
+        textSearch: normalizeSearchText(question.textPlain),
         explanationHtml: question.explanationHtml ?? null,
         primaryCategoryId,
         createdAt: question.createdAt,
@@ -153,6 +155,7 @@ async function main() {
           canonicalHash: question.canonicalHash,
           textHtml: question.textHtml,
           textPlain: question.textPlain,
+          textSearch: normalizeSearchText(question.textPlain),
           explanationHtml: question.explanationHtml ?? null,
           primaryCategoryId,
           updatedAt: question.updatedAt,
@@ -173,6 +176,7 @@ async function main() {
         label: String.fromCharCode(65 + index),
         textHtml,
         textPlain,
+        textSearch: normalizeSearchText(textPlain),
         isCorrect: option.isCorrect,
         position: index,
       });

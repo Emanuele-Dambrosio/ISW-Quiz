@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowDownUp, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { AppearanceBadge } from "@/components/AppearanceBadge";
 import { AppHeader, AppShell } from "@/components/AppShell";
+import { FlagButton } from "@/components/FlagButton";
 import { QuestionFilters } from "@/components/QuestionFilters";
 import { formatExamAppearanceLabel, formatExamLabel } from "@/lib/exam-format";
 import {
@@ -146,7 +147,7 @@ export default async function QuestionsPage({ searchParams }: { searchParams: Se
                         Comparse
                       </Link>
                     </th>
-                    <th className="w-[8%] px-4 py-3 font-medium">Apri</th>
+                    <th className="w-[8%] px-4 py-3 font-medium">Azioni</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -170,12 +171,15 @@ export default async function QuestionsPage({ searchParams }: { searchParams: Se
                           <AppearanceBadge count={appearanceCount} labels={appearanceLabels} />
                         </td>
                         <td className="px-4 py-4">
-                          <Link
-                            href={buildQuestionDetailHref(question.id, currentQuestionsHref)}
-                            className="inline-flex h-9 items-center justify-center rounded-lg border border-[#d8d6cc] px-3 text-sm font-medium hover:bg-[#f3f1e8]"
-                          >
-                            Apri
-                          </Link>
+                          <div className="flex items-center gap-2">
+                            <Link
+                              href={buildQuestionDetailHref(question.id, currentQuestionsHref)}
+                              className="inline-flex h-9 items-center justify-center rounded-lg border border-[#d8d6cc] px-3 text-sm font-medium hover:bg-[#f3f1e8]"
+                            >
+                              Apri
+                            </Link>
+                            <FlagButton questionId={question.id} initialFlagged={question.isFlagged} variant="compact" />
+                          </div>
                         </td>
                       </tr>
                     );

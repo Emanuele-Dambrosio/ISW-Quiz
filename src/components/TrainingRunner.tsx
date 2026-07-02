@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, Shuffle, XCircle } from "lucide-react";
 import { AppearanceBadge } from "@/components/AppearanceBadge";
+import { FlagButton } from "@/components/FlagButton";
 import { formatExamAppearanceLabel } from "@/lib/exam-format";
 import type { TrainingQuestionData } from "@/lib/quiz-data";
 
@@ -116,7 +117,10 @@ export function TrainingRunner({ initialQuestion }: { initialQuestion: TrainingQ
             </div>
             <h2 className="text-lg font-semibold">{question.categoryName ?? "Non classificata"}</h2>
           </div>
-          <CounterPill value={counter} />
+          <div className="flex items-center gap-2">
+            <FlagButton key={question.id} questionId={question.id} initialFlagged={question.isFlagged} />
+            <CounterPill value={counter} />
+          </div>
         </div>
 
         <div className="p-5">

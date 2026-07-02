@@ -1,10 +1,12 @@
-import { and, asc, desc, eq, inArray, like, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
+import { normalizeSearchText } from "@/lib/search-text";
 import {
   categories,
   exams,
   options,
   questionAppearances,
+  questionFlags,
   questions,
   questionStats,
 } from "@/db/schema";
@@ -17,6 +19,7 @@ export type QuestionListRow = {
   appearanceCount: number;
   appearanceLabels: string | null;
   masteryScore: number;
+  isFlagged: boolean;
 };
 
 export type QuestionListSort =
@@ -48,6 +51,7 @@ export type TrainingQuestionData = QuizQuestionData & {
   masteryScore: number;
   appearanceCount: number;
   appearanceLabels: string | null;
+  isFlagged: boolean;
 };
 
 export async function getCategoryRows() {
@@ -82,7 +86,7 @@ export async function getQuestionListRows(filters?: {
   const masteryScore = sql<number>`coalesce(${questionStats.masteryScore}, 0)`;
   const orderBy = getQuestionListOrderBy(filters?.sort, appearanceCount, masteryScore);
 
-  return db
+  const rows = await db
     .select({
       id: questions.id,
       displayNumber: questions.displayNumber,
@@ -91,17 +95,58 @@ export async function getQuestionListRows(filters?: {
       appearanceCount,
       appearanceLabels,
       masteryScore,
+      isFlagged: sql<number>`case when ${questionFlags.questionId} is not null then 1 else 0 end`,
     })
     .from(questions)
     .leftJoin(categories, eq(questions.primaryCategoryId, categories.id))
     .leftJoin(questionAppearances, eq(questionAppearances.questionId, questions.id))
     .leftJoin(exams, eq(questionAppearances.examId, exams.id))
     .leftJoin(questionStats, eq(questionStats.questionId, questions.id))
+    .leftJoin(questionFlags, eq(questionFlags.questionId, questions.id))
     .where(conditions.length ? and(...conditions) : undefined)
     .groupBy(questions.id)
     .orderBy(...orderBy)
     .limit(filters?.limit ?? 100)
     .offset(filters?.offset ?? 0);
+
+  return rows.map((row) => ({ ...row, isFlagged: Boolean(row.isFlagged) }));
+}
+
+export async function getFlaggedQuestionRows(): Promise<QuestionListRow[]> {
+  const appearanceCount = sql<number>`count(distinct ${questionAppearances.examId})`;
+  const appearanceLabels = sql<string>`group_concat(distinct coalesce(${exams.date}, ${exams.title}))`;
+  const masteryScore = sql<number>`coalesce(${questionStats.masteryScore}, 0)`;
+
+  const rows = await db
+    .select({
+      id: questions.id,
+      displayNumber: questions.displayNumber,
+      textPlain: questions.textPlain,
+      categoryName: categories.name,
+      appearanceCount,
+      appearanceLabels,
+      masteryScore,
+      flaggedAt: questionFlags.flaggedAt,
+    })
+    .from(questionFlags)
+    .innerJoin(questions, eq(questions.id, questionFlags.questionId))
+    .leftJoin(categories, eq(questions.primaryCategoryId, categories.id))
+    .leftJoin(questionAppearances, eq(questionAppearances.questionId, questions.id))
+    .leftJoin(exams, eq(questionAppearances.examId, exams.id))
+    .leftJoin(questionStats, eq(questionStats.questionId, questions.id))
+    .groupBy(questions.id)
+    .orderBy(desc(questionFlags.flaggedAt));
+
+  return rows.map((row) => ({
+    id: row.id,
+    displayNumber: row.displayNumber,
+    textPlain: row.textPlain,
+    categoryName: row.categoryName,
+    appearanceCount: Number(row.appearanceCount ?? 0),
+    appearanceLabels: row.appearanceLabels ?? null,
+    masteryScore: Number(row.masteryScore ?? 0),
+    isFlagged: true,
+  }));
 }
 
 export async function getQuestionListCount(filters?: {
@@ -150,12 +195,14 @@ export async function getRandomTrainingQuestion(excludeQuestionId?: string): Pro
       masteryScore: sql<number>`coalesce(${questionStats.masteryScore}, 0)`,
       appearanceCount,
       appearanceLabels,
+      isFlagged: sql<number>`case when ${questionFlags.questionId} is not null then 1 else 0 end`,
     })
     .from(questions)
     .leftJoin(categories, eq(questions.primaryCategoryId, categories.id))
     .leftJoin(questionAppearances, eq(questionAppearances.questionId, questions.id))
     .leftJoin(exams, eq(questionAppearances.examId, exams.id))
     .leftJoin(questionStats, eq(questionStats.questionId, questions.id))
+    .leftJoin(questionFlags, eq(questionFlags.questionId, questions.id))
     .where(excludeQuestionId ? sql`${questions.id} <> ${excludeQuestionId}` : undefined)
     .groupBy(questions.id)
     .orderBy(sql`random()`)
@@ -171,6 +218,7 @@ export async function getRandomTrainingQuestion(excludeQuestionId?: string): Pro
     masteryScore: Number(rows[0].masteryScore ?? 0),
     appearanceCount: Number(rows[0].appearanceCount ?? 0),
     appearanceLabels: rows[0].appearanceLabels ?? null,
+    isFlagged: Boolean(rows[0].isFlagged),
   };
 }
 
@@ -183,10 +231,12 @@ export async function getQuestionDetail(id: string) {
       textPlain: questions.textPlain,
       categoryName: categories.name,
       masteryScore: sql<number>`coalesce(${questionStats.masteryScore}, 0)`,
+      isFlagged: sql<number>`case when ${questionFlags.questionId} is not null then 1 else 0 end`,
     })
     .from(questions)
     .leftJoin(categories, eq(questions.primaryCategoryId, categories.id))
     .leftJoin(questionStats, eq(questionStats.questionId, questions.id))
+    .leftJoin(questionFlags, eq(questionFlags.questionId, questions.id))
     .where(eq(questions.id, id))
     .limit(1);
 
@@ -205,7 +255,12 @@ export async function getQuestionDetail(id: string) {
     .where(eq(questionAppearances.questionId, id))
     .orderBy(exams.date, exams.title);
 
-  return { ...hydrated, masteryScore: Number(question.masteryScore ?? 0), appearances };
+  return {
+    ...hydrated,
+    masteryScore: Number(question.masteryScore ?? 0),
+    isFlagged: Boolean(question.isFlagged),
+    appearances,
+  };
 }
 
 async function hydrateQuizQuestions(
@@ -302,13 +357,40 @@ function buildQuestionConditions(filters?: {
   const query = filters?.query?.trim();
   if (query) {
     const displayNumberMatch = query.match(/^#?(\d+)$/);
-    const textCondition = like(questions.textPlain, `%${query}%`);
-    conditions.push(
-      displayNumberMatch
-        ? or(eq(questions.displayNumber, Number(displayNumberMatch[1])), textCondition)!
-        : textCondition,
-    );
+    const textCondition = buildTextSearchCondition(query);
+    if (displayNumberMatch) {
+      const numberCondition = eq(questions.displayNumber, Number(displayNumberMatch[1]));
+      conditions.push(textCondition ? or(numberCondition, textCondition)! : numberCondition);
+    } else if (textCondition) {
+      conditions.push(textCondition);
+    }
   }
 
   return conditions;
+}
+
+/**
+ * Ricerca elastica: ogni parola della query deve comparire (in qualsiasi
+ * ordine) nel testo della domanda o in una delle opzioni. Il confronto
+ * avviene sulla colonna precalcolata text_search (minuscole, senza accenti).
+ */
+function buildTextSearchCondition(query: string): SQL | null {
+  const tokens = normalizeSearchText(query)
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (tokens.length === 0) return null;
+
+  const tokenConditions = tokens.map((token) => {
+    const pattern = `%${escapeLikePattern(token)}%`;
+    const questionMatch = sql`${questions.textSearch} like ${pattern} escape '\\'`;
+    const optionMatch = sql`exists (select 1 from ${options} where ${options.questionId} = ${questions.id} and ${options.textSearch} like ${pattern} escape '\\')`;
+    return or(questionMatch, optionMatch)!;
+  });
+
+  return and(...tokenConditions)!;
+}
+
+function escapeLikePattern(value: string) {
+  return value.replace(/[\\%_]/g, (match) => `\\${match}`);
 }

@@ -32,6 +32,7 @@ export const questions = sqliteTable(
     canonicalHash: text("canonical_hash").notNull(),
     textHtml: text("text_html").notNull(),
     textPlain: text("text_plain").notNull(),
+    textSearch: text("text_search").notNull().default(""),
     explanationHtml: text("explanation_html"),
     primaryCategoryId: text("primary_category_id").references(() => categories.id),
     createdAt: text("created_at").notNull(),
@@ -54,6 +55,7 @@ export const options = sqliteTable(
     label: text("label").notNull(),
     textHtml: text("text_html").notNull(),
     textPlain: text("text_plain").notNull(),
+    textSearch: text("text_search").notNull().default(""),
     isCorrect: integer("is_correct", { mode: "boolean" }).notNull(),
     position: integer("position").notNull(),
   },
@@ -158,6 +160,13 @@ export const questionStats = sqliteTable("question_stats", {
   skippedCount: integer("skipped_count").notNull(),
   lastWrongAt: text("last_wrong_at"),
   updatedAt: text("updated_at").notNull(),
+});
+
+export const questionFlags = sqliteTable("question_flags", {
+  questionId: text("question_id")
+    .primaryKey()
+    .references(() => questions.id, { onDelete: "cascade" }),
+  flaggedAt: text("flagged_at").notNull(),
 });
 
 export const questionsRelations = relations(questions, ({ many, one }) => ({
