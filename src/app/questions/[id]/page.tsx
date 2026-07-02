@@ -1,10 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
+import { AnswerTimesChart } from "@/components/AnswerTimesChart";
 import { AppHeader, AppShell } from "@/components/AppShell";
 import { FlagButton } from "@/components/FlagButton";
+import { QuestionCategorySelect } from "@/components/QuestionCategorySelect";
+import { QuestionResetBox } from "@/components/QuestionResetBox";
 import { formatExamLabel } from "@/lib/exam-format";
-import { getQuestionDetail } from "@/lib/quiz-data";
+import { getAllCategoriesWithCounts, getAnswerTimes, getQuestionDetail } from "@/lib/quiz-data";
+import { getExamSecondsLimit } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +23,12 @@ export default async function QuestionDetailPage({
   searchParams: SearchParams;
 }) {
   const [{ id }, filters] = await Promise.all([params, searchParams]);
-  const question = await getQuestionDetail(id);
+  const [question, answerHistory, allCategories, examSecondsLimit] = await Promise.all([
+    getQuestionDetail(id),
+    getAnswerTimes(id),
+    getAllCategoriesWithCounts(),
+    getExamSecondsLimit(),
+  ]);
   if (!question) notFound();
   const returnTarget = normalizeReturnTarget(filters.returnTo);
 
@@ -46,9 +55,11 @@ export default async function QuestionDetailPage({
             <span className="rounded-md bg-[#1b4332] px-2 py-1 font-semibold text-white">
               Domanda #{question.displayNumber}
             </span>
-            <span className="rounded-md bg-[#f3f1e8] px-2 py-1">
-              {question.categoryName ?? "Non classificata"}
-            </span>
+            <QuestionCategorySelect
+              questionId={question.id}
+              categories={allCategories.map(({ id: categoryId, name }) => ({ id: categoryId, name }))}
+              currentCategoryId={question.primaryCategoryId}
+            />
             <span className="rounded-md bg-[#f3f1e8] px-2 py-1">
               {question.appearances.length} comparse
             </span>
@@ -79,6 +90,20 @@ export default async function QuestionDetailPage({
             ))}
           </div>
         </section>
+
+        <section className="rounded-lg border border-[#dfded6] bg-white p-5">
+          <h2 className="mb-4 text-lg font-semibold">Tempi di risposta</h2>
+          {answerHistory.length > 0 ? (
+            <AnswerTimesChart history={answerHistory} limitSeconds={examSecondsLimit} />
+          ) : (
+            <p className="text-sm text-[#667064]">
+              Non hai ancora risposto a questa domanda in allenamento: i tempi compariranno qui dopo il primo
+              tentativo.
+            </p>
+          )}
+        </section>
+
+        <QuestionResetBox questionId={question.id} displayNumber={question.displayNumber} />
 
         <section className="rounded-lg border border-[#dfded6] bg-white p-5">
           <h2 className="mb-4 text-lg font-semibold">Comparse</h2>

@@ -16,4 +16,8 @@ if [ ! -f "$db_path" ]; then
   echo "Created runtime database from seed: $db_path"
 fi
 
+# Allinea lo schema del database (nuove tabelle/colonne) a ogni avvio:
+# idempotente, quindi sicuro anche su volumi creati da versioni precedenti.
+node /app/scripts/migrate-db.mjs
+
 exec "$@"

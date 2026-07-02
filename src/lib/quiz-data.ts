@@ -1,7 +1,9 @@
 import { and, asc, desc, eq, inArray, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { normalizeSearchText } from "@/lib/search-text";
+import type { TrainingMode } from "@/lib/training-modes";
 import {
+  answerTimes,
   categories,
   exams,
   options,
@@ -53,6 +55,21 @@ export type TrainingQuestionData = QuizQuestionData & {
   appearanceLabels: string | null;
   isFlagged: boolean;
 };
+
+export async function getAllCategoriesWithCounts() {
+  const rows = await db
+    .select({
+      id: categories.id,
+      name: categories.name,
+      questionCount: sql<number>`count(${questions.id})`,
+    })
+    .from(categories)
+    .leftJoin(questions, eq(questions.primaryCategoryId, categories.id))
+    .groupBy(categories.id, categories.name)
+    .orderBy(categories.name);
+
+  return rows.map((row) => ({ ...row, questionCount: Number(row.questionCount ?? 0) }));
+}
 
 export async function getCategoryRows() {
   return db
@@ -164,6 +181,18 @@ export async function getQuestionListCount(filters?: {
   return Number(row?.value ?? 0);
 }
 
+export async function getAnswerTimes(questionId: string) {
+  return db
+    .select({
+      elapsedMs: answerTimes.elapsedMs,
+      outcome: answerTimes.outcome,
+      answeredAt: answerTimes.answeredAt,
+    })
+    .from(answerTimes)
+    .where(eq(answerTimes.questionId, questionId))
+    .orderBy(asc(answerTimes.id));
+}
+
 export async function getFlaggedQuestionCount() {
   const [row] = await db
     .select({ value: sql<number>`count(*)` })
@@ -189,9 +218,40 @@ export async function getRandomQuizQuestions(limit = 50) {
   return hydrateQuizQuestions(rows);
 }
 
-export async function getRandomTrainingQuestion(excludeQuestionId?: string): Promise<TrainingQuestionData | null> {
+/**
+ * Le modalità "partendo dalle più X" pescano a caso tra le prime
+ * TRAINING_POOL_SIZE candidate della classifica del criterio, così c'è
+ * varietà senza uscire dalle domande più rilevanti.
+ */
+const TRAINING_POOL_SIZE = 25;
+
+export async function getTrainingQuestion(
+  mode: TrainingMode,
+  excludeQuestionId?: string,
+): Promise<TrainingQuestionData | null> {
   const appearanceCount = sql<number>`count(distinct ${questionAppearances.examId})`;
   const appearanceLabels = sql<string>`group_concat(distinct coalesce(${exams.date}, ${exams.title}))`;
+  const masteryScore = sql<number>`coalesce(${questionStats.masteryScore}, 0)`;
+  // La media non risente della moltiplicazione di righe dovuta agli altri
+  // join: ogni tempo è duplicato lo stesso numero di volte per domanda.
+  const averageElapsedMs = sql<number>`avg(${answerTimes.elapsedMs})`;
+
+  const conditions: SQL[] = [];
+  if (excludeQuestionId) {
+    conditions.push(sql`${questions.id} <> ${excludeQuestionId}`);
+  }
+  if (mode === "never_seen") {
+    conditions.push(sql`coalesce(${questionStats.seenCount}, 0) = 0`);
+  }
+
+  const orderBy =
+    mode === "exam_frequency"
+      ? [desc(appearanceCount), sql`random()`]
+      : mode === "most_wrong"
+        ? [asc(masteryScore), sql`random()`]
+        : mode === "slowest"
+          ? [desc(averageElapsedMs), sql`random()`]
+          : [sql`random()`];
 
   const rows = await db
     .select({
@@ -200,7 +260,7 @@ export async function getRandomTrainingQuestion(excludeQuestionId?: string): Pro
       textHtml: questions.textHtml,
       textPlain: questions.textPlain,
       categoryName: categories.name,
-      masteryScore: sql<number>`coalesce(${questionStats.masteryScore}, 0)`,
+      masteryScore,
       appearanceCount,
       appearanceLabels,
       isFlagged: sql<number>`case when ${questionFlags.questionId} is not null then 1 else 0 end`,
@@ -211,23 +271,36 @@ export async function getRandomTrainingQuestion(excludeQuestionId?: string): Pro
     .leftJoin(exams, eq(questionAppearances.examId, exams.id))
     .leftJoin(questionStats, eq(questionStats.questionId, questions.id))
     .leftJoin(questionFlags, eq(questionFlags.questionId, questions.id))
-    .where(excludeQuestionId ? sql`${questions.id} <> ${excludeQuestionId}` : undefined)
+    .leftJoin(answerTimes, eq(answerTimes.questionId, questions.id))
+    .where(conditions.length ? and(...conditions) : undefined)
     .groupBy(questions.id)
-    .orderBy(sql`random()`)
-    .limit(1);
+    .having(mode === "slowest" ? sql`count(${answerTimes.id}) > 0` : undefined)
+    .orderBy(...orderBy)
+    .limit(TRAINING_POOL_SIZE);
 
   if (rows.length === 0) return null;
 
-  const [hydrated] = await hydrateQuizQuestions(rows);
+  const chosen = rows[Math.floor(Math.random() * rows.length)];
+  const [hydrated] = await hydrateQuizQuestions([chosen]);
   if (!hydrated) return null;
 
   return {
     ...hydrated,
-    masteryScore: Number(rows[0].masteryScore ?? 0),
-    appearanceCount: Number(rows[0].appearanceCount ?? 0),
-    appearanceLabels: rows[0].appearanceLabels ?? null,
-    isFlagged: Boolean(rows[0].isFlagged),
+    masteryScore: Number(chosen.masteryScore ?? 0),
+    appearanceCount: Number(chosen.appearanceCount ?? 0),
+    appearanceLabels: chosen.appearanceLabels ?? null,
+    isFlagged: Boolean(chosen.isFlagged),
   };
+}
+
+export async function getNeverSeenQuestionCount() {
+  const [row] = await db
+    .select({ value: sql<number>`count(*)` })
+    .from(questions)
+    .leftJoin(questionStats, eq(questionStats.questionId, questions.id))
+    .where(sql`coalesce(${questionStats.seenCount}, 0) = 0`);
+
+  return Number(row?.value ?? 0);
 }
 
 export async function getQuestionDetail(id: string) {
@@ -238,6 +311,7 @@ export async function getQuestionDetail(id: string) {
       textHtml: questions.textHtml,
       textPlain: questions.textPlain,
       categoryName: categories.name,
+      primaryCategoryId: questions.primaryCategoryId,
       masteryScore: sql<number>`coalesce(${questionStats.masteryScore}, 0)`,
       isFlagged: sql<number>`case when ${questionFlags.questionId} is not null then 1 else 0 end`,
     })
@@ -265,6 +339,7 @@ export async function getQuestionDetail(id: string) {
 
   return {
     ...hydrated,
+    primaryCategoryId: question.primaryCategoryId ?? null,
     masteryScore: Number(question.masteryScore ?? 0),
     isFlagged: Boolean(question.isFlagged),
     appearances,

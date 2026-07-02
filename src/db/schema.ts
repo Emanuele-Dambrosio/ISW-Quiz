@@ -162,6 +162,25 @@ export const questionStats = sqliteTable("question_stats", {
   updatedAt: text("updated_at").notNull(),
 });
 
+export const answerTimes = sqliteTable(
+  "answer_times",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    questionId: text("question_id")
+      .notNull()
+      .references(() => questions.id, { onDelete: "cascade" }),
+    outcome: text("outcome", { enum: ["correct", "wrong", "skipped"] }).notNull(),
+    elapsedMs: integer("elapsed_ms").notNull(),
+    answeredAt: text("answered_at").notNull(),
+  },
+  (table) => [index("answer_times_question_idx").on(table.questionId)],
+);
+
+export const appSettings = sqliteTable("app_settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+});
+
 export const questionFlags = sqliteTable("question_flags", {
   questionId: text("question_id")
     .primaryKey()

@@ -1,18 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db/client";
-import { options, questionStats } from "@/db/schema";
-import { getRandomTrainingQuestion } from "@/lib/quiz-data";
+import { answerTimes, options, questionStats } from "@/db/schema";
+import { getTrainingQuestion } from "@/lib/quiz-data";
+import { isTrainingMode, type TrainingMode } from "@/lib/training-modes";
 
 const answerSchema = z.object({
   questionId: z.string().min(1),
   selectedOptionId: z.string().nullable(),
+  elapsedMs: z.number().int().min(0).max(24 * 60 * 60 * 1000).default(0),
 });
 
 export async function GET(request: NextRequest) {
   const exclude = request.nextUrl.searchParams.get("exclude") ?? undefined;
-  const question = await getRandomTrainingQuestion(exclude);
+  const modeParam = request.nextUrl.searchParams.get("mode") ?? "";
+  const mode: TrainingMode = isTrainingMode(modeParam) ? modeParam : "random";
+  const question = await getTrainingQuestion(mode, exclude);
 
   return NextResponse.json({ question });
 }
@@ -61,10 +65,29 @@ export async function POST(request: NextRequest) {
       set: nextStats,
     });
 
+  await db.insert(answerTimes).values({
+    questionId: body.questionId,
+    outcome,
+    elapsedMs: body.elapsedMs,
+    answeredAt: now,
+  });
+
+  const history = await db
+    .select({
+      elapsedMs: answerTimes.elapsedMs,
+      outcome: answerTimes.outcome,
+      answeredAt: answerTimes.answeredAt,
+    })
+    .from(answerTimes)
+    .where(eq(answerTimes.questionId, body.questionId))
+    .orderBy(asc(answerTimes.id));
+
   return NextResponse.json({
     outcome,
     delta,
     score: nextStats.masteryScore,
     correctOptionId: correctOption?.id ?? null,
+    elapsedMs: body.elapsedMs,
+    history,
   });
 }

@@ -32,6 +32,11 @@ export async function POST(request: NextRequest) {
   // l'analisi statica di Turbopack (symlink fuori dal progetto).
   const pythonBin = path.resolve(/* turbopackIgnore: true */ workspaceRoot, process.env.PDF_PYTHON_BIN ?? "python3");
   const scriptPath = path.join(/* turbopackIgnore: true */ workspaceRoot, "scripts", "generate-question-bank-pdf.py");
+  // Stesso database usato dall'app (in Docker sta fuori dalla workspace).
+  const dbPath = path.resolve(
+    /* turbopackIgnore: true */ workspaceRoot,
+    (process.env.DB_FILE_NAME ?? "file:local.db").replace(/^file:/, ""),
+  );
 
   const workDir = await mkdtemp(path.join(tmpdir(), "isw-pdf-"));
   const outputPath = path.join(workDir, `${randomUUID()}.pdf`);
@@ -42,6 +47,8 @@ export async function POST(request: NextRequest) {
 
     const args = [
       scriptPath,
+      "--db",
+      dbPath,
       "--output",
       outputPath,
       "--title",
